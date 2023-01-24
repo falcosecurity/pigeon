@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/FedeDP/GhEnvSet/pkg/poiana"
 	"github.com/google/go-github/v49/github"
@@ -16,7 +17,25 @@ func fail(err string) {
 	os.Exit(1)
 }
 
+const sampleYAML = `
+orgs:
+  falcosecurity:
+    repos:
+      .github:
+        actions:
+          variables:
+            - GH_TOKEN
+          secrets:
+            - S3_ACCESSEKY
+`
+
 func main() {
+	conf := poiana.GithubConfig{}
+	err := conf.Decode(strings.NewReader(sampleYAML))
+	if err != nil {
+		fail(err.Error())
+	}
+
 	ctx := context.Background()
 	fmt.Println("Start")
 
