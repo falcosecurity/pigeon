@@ -7,8 +7,8 @@ import (
 )
 
 type GitHubRepoActions struct {
-	Variables []string `yaml:"variables"`
-	Secrets   []string `yaml:"secrets"`
+	Variables map[string]string `yaml:"variables"`
+	Secrets   []string          `yaml:"secrets"`
 }
 
 type GitHubRepo struct {
