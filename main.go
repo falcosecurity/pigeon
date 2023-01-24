@@ -24,7 +24,7 @@ orgs:
       .github:
         actions:
           variables:
-            - GH_TOKEN
+            GH_TOKEN: "ciao"
           secrets:
             - S3_ACCESSEKY
 `
@@ -53,7 +53,13 @@ func syncSecrets(ctx context.Context, client *poiana.Client, orgName, repoName s
 		}
 	}
 
-	// Step 3: add or update all conf-listed secrets
+	// Step 3: fetch encryption key
+	pKey, _, err := client.Actions.GetRepoPublicKey(ctx, orgName, repoName)
+	if err != nil {
+		return err
+	}
+
+	// Step 4: add or update all conf-listed secrets
 	for _, sec := range secrets {
 		// TODO
 		// encrypted_value string
@@ -63,8 +69,8 @@ func syncSecrets(ctx context.Context, client *poiana.Client, orgName, repoName s
 		//	ID of the key you used to encrypt the secret.
 		_, err = client.Actions.CreateOrUpdateRepoSecret(ctx, orgName, repoName, &github.EncryptedSecret{
 			Name:           sec,
-			KeyID:          "",
-			EncryptedValue: "", // TODO: fetch from 1password
+			KeyID:          pKey.GetKeyID(),
+			EncryptedValue: "", // TODO: fetch from 1password and encrypt using pkey
 		})
 		if err != nil {
 			return err
@@ -73,7 +79,7 @@ func syncSecrets(ctx context.Context, client *poiana.Client, orgName, repoName s
 	return nil
 }
 
-func syncVariables(ctx context.Context, client *poiana.Client, orgName, repoName string, variables []string) error {
+func syncVariables(ctx context.Context, client *poiana.Client, orgName, repoName string, variables map[string]string) error {
 	// Step 1: load repo variables
 	vars, _, err := client.Actions.ListRepoVariables(ctx, orgName, repoName, nil)
 	if err != nil {
@@ -83,8 +89,8 @@ func syncVariables(ctx context.Context, client *poiana.Client, orgName, repoName
 	// Step 2: delete all variables that are no more existing
 	found := false
 	for _, existentVar := range vars.Variables {
-		for _, newVar := range variables {
-			if newVar == existentVar.Name {
+		for newVarName, _ := range variables {
+			if newVarName == existentVar.Name {
 				found = true
 				break
 			}
@@ -98,10 +104,10 @@ func syncVariables(ctx context.Context, client *poiana.Client, orgName, repoName
 	}
 
 	// Step 3: add or update all conf-listed variables
-	for _, variable := range variables {
+	for newVarName, newVarValue := range variables {
 		_, err = client.Actions.CreateOrUpdateRepoVariable(ctx, orgName, repoName, &poiana.Variable{
-			Name:  variable,
-			Value: "blablabla", // TODO: fetch from 1password
+			Name:  newVarName,
+			Value: newVarValue,
 		})
 		if err != nil {
 			return err
