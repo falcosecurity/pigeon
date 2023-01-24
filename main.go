@@ -29,6 +29,87 @@ orgs:
             - S3_ACCESSEKY
 `
 
+func syncSecrets(ctx context.Context, client *poiana.Client, orgName, repoName string, secrets []string) error {
+	// Step 1: load repo secrets
+	secs, _, err := client.Actions.ListRepoSecrets(ctx, orgName, repoName, nil)
+	if err != nil {
+		return err
+	}
+
+	// Step 2: delete all secrets that are no more existing
+	found := false
+	for _, existentSec := range secs.Secrets {
+		for _, newSec := range secrets {
+			if newSec == existentSec.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			_, err = client.Actions.DeleteRepoSecret(ctx, orgName, repoName, existentSec.Name)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Step 3: add or update all conf-listed secrets
+	for _, sec := range secrets {
+		// TODO
+		// encrypted_value string
+		//	Value for your secret, encrypted with LibSodium using the public key retrieved from the Get a repository public key endpoint.
+		//
+		//	key_id string
+		//	ID of the key you used to encrypt the secret.
+		_, err = client.Actions.CreateOrUpdateRepoSecret(ctx, orgName, repoName, &github.EncryptedSecret{
+			Name:           sec,
+			KeyID:          "",
+			EncryptedValue: "", // TODO: fetch from 1password
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func syncVariables(ctx context.Context, client *poiana.Client, orgName, repoName string, variables []string) error {
+	// Step 1: load repo variables
+	vars, _, err := client.Actions.ListRepoVariables(ctx, orgName, repoName, nil)
+	if err != nil {
+		return err
+	}
+
+	// Step 2: delete all variables that are no more existing
+	found := false
+	for _, existentVar := range vars.Variables {
+		for _, newVar := range variables {
+			if newVar == existentVar.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			_, err = client.Actions.DeleteRepoVariable(ctx, orgName, repoName, existentVar.Name)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Step 3: add or update all conf-listed variables
+	for _, variable := range variables {
+		_, err = client.Actions.CreateOrUpdateRepoVariable(ctx, orgName, repoName, &poiana.Variable{
+			Name:  variable,
+			Value: "blablabla", // TODO: fetch from 1password
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func main() {
 	conf := poiana.GithubConfig{}
 	err := conf.Decode(strings.NewReader(sampleYAML))
@@ -49,55 +130,21 @@ func main() {
 	}
 	client := poiana.NewClient(github.NewClient(tc))
 
-	// fmt.Println("Have client")
-	// env, _, err := client.Repositories.CreateUpdateEnvironment(ctx, "FedeDP", "test-infra", "stocazzo2",
-	// 	&github.CreateUpdateEnvironment{
-	// 		WaitTimer:              nil,
-	// 		Reviewers:              nil,
-	// 		DeploymentBranchPolicy: nil,
-	// 	})
-	// if err == nil {
-	// 	fmt.Println(env.CreatedAt)
-	// }
+	fmt.Println("Looping orgs")
+	for orgName, org := range conf.Orgs {
+		for repoName, repo := range org.Repos {
+			err = syncSecrets(ctx, client, orgName, repoName, repo.Actions.Secrets)
+			if err != nil {
+				fail(err.Error())
+			}
+			fmt.Printf("Secrets synced for %s/%s\n", orgName, repoName)
 
-	vars, _, err := client.Actions.ListRepoVariables(ctx, "FedeDP", "test-infra", nil)
-	if err != nil {
-		fail(err.Error())
+			err = syncVariables(ctx, client, orgName, repoName, repo.Actions.Variables)
+			if err != nil {
+				fail(err.Error())
+			}
+			fmt.Printf("Variables synced for %s/%s\n", orgName, repoName)
+		}
 	}
-	for _, s := range vars.Variables {
-		fmt.Printf("%s: %s\n", s.Name, s.Value)
-	}
-
-	println("creating...")
-	_, err = client.Actions.CreateOrUpdateRepoVariable(ctx, "FedeDP", "test-infra", &poiana.Variable{
-		Name:  "topkek2",
-		Value: "stocazzo2",
-	})
-	if err != nil {
-		fail(err.Error())
-	}
-
-	vars, _, err = client.Actions.ListRepoVariables(ctx, "FedeDP", "test-infra", nil)
-	if err != nil {
-		fail(err.Error())
-	}
-	for _, s := range vars.Variables {
-		fmt.Printf("  %s: %s\n", s.Name, s.Value)
-	}
-
-	println("deleting...")
-	_, err = client.Actions.DeleteRepoVariable(ctx, "FedeDP", "test-infra", "topkek2")
-	if err != nil {
-		fail(err.Error())
-	}
-
-	vars, _, err = client.Actions.ListRepoVariables(ctx, "FedeDP", "test-infra", nil)
-	if err != nil {
-		fail(err.Error())
-	}
-	for _, s := range vars.Variables {
-		fmt.Printf("%s: %s\n", s.Name, s.Value)
-	}
-
 	fmt.Println("End")
 }
