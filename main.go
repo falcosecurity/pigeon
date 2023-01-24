@@ -42,7 +42,7 @@ func main() {
 	// }
 	_, err := client.Actions.CreateOrUpdateRepoVariable(ctx, "FedeDP", "test-infra", &poiana.Variable{
 		Name:  "topkek2",
-		Value: "stocazzo",
+		Value: "stocazzo2",
 	})
 	if err != nil {
 		fail(err.Error())

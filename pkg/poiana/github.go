@@ -3,6 +3,7 @@ package poiana
 import (
 	"context"
 	"fmt"
+	"net/http"
 	"net/url"
 	"reflect"
 
@@ -110,8 +111,13 @@ func (s *actionsService) CreateOrUpdateRepoVariable(ctx context.Context, owner, 
 	}
 	resp, err := s.client.Do(ctx, req, nil)
 	if err != nil {
-		if resp.StatusCode != StatusNoContent {
-			println("OH NO")
+		if resp.StatusCode != http.StatusNoContent {
+			url = fmt.Sprintf("repos/%v/%v/actions/variables", owner, repo)
+			req, err = s.client.NewRequest("POST", url, variable)
+			if err != nil {
+				return nil, err
+			}
+			return s.client.Do(ctx, req, nil)
 		}
 	}
 	return resp, err
