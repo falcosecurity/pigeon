@@ -11,7 +11,7 @@ import (
 	"github.com/google/go-querystring/query"
 )
 
-// Secret represents a repository action variable.
+// Variable represents a repository action variable.
 type Variable struct {
 	Name      string           `json:"name"`
 	Value     string           `json:"value"`

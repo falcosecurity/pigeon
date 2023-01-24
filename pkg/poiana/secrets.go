@@ -1,39 +1,41 @@
 package poiana
 
 import (
+	"fmt"
+	"os"
+
 	"github.com/1Password/connect-sdk-go/connect"
+)
+
+var (
+	// todo: switch to "credential", "notes", or do a cascade attempt
+	onePasswordItemFieldName = "password"
 )
 
 type SecretsProvider interface {
 	GetSecret(string) (string, error)
 }
 
-type OnePasswordProvider struct {
-	connect.Client
-	vault string
+type onePasswordProvider struct {
+	c connect.Client
 }
 
-type Credential struct {
-	Username string `opfield:"username"`
-	Password string `opfield:"password"`
-}
-
-func newOnePasswordProvider(vault string) (*OnePasswordProvider, error) {
+func NewOnePasswordProvider() (*onePasswordProvider, error) {
 	client, err := connect.NewClientFromEnvironment()
 	if err != nil {
 		return nil, err
 	}
-	return &OnePasswordProvider{
-		client,
-		vault,
-	}, nil
+	return &onePasswordProvider{client}, nil
 }
 
-func (pp *OnePasswordProvider) GetSecret(key string) (string, error) {
-	var cred Credential
-	err := pp.Client.LoadStructFromItemByTitle(&cred, key, pp.vault)
+func (pp *onePasswordProvider) GetSecret(key string) (string, error) {
+	vault, vaultFount := os.LookupEnv("OP_VAULT")
+	if !vaultFount {
+		return "", fmt.Errorf("the OP_VAULT env variable is not set")
+	}
+	item, err := pp.c.GetItemByTitle(key, vault)
 	if err != nil {
 		return "", nil
 	}
-	return cred.Password, nil
+	return item.GetValue(onePasswordItemFieldName), nil
 }
