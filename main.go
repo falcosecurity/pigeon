@@ -40,7 +40,17 @@ func main() {
 	// if err == nil {
 	// 	fmt.Println(env.CreatedAt)
 	// }
-	_, err := client.Actions.CreateOrUpdateRepoVariable(ctx, "FedeDP", "test-infra", &poiana.Variable{
+
+	vars, _, err := client.Actions.ListRepoVariables(ctx, "FedeDP", "test-infra", nil)
+	if err != nil {
+		fail(err.Error())
+	}
+	for _, s := range vars.Variables {
+		fmt.Printf("%s: %s\n", s.Name, s.Value)
+	}
+
+	println("creating...")
+	_, err = client.Actions.CreateOrUpdateRepoVariable(ctx, "FedeDP", "test-infra", &poiana.Variable{
 		Name:  "topkek2",
 		Value: "stocazzo2",
 	})
@@ -48,12 +58,26 @@ func main() {
 		fail(err.Error())
 	}
 
-	vars, _, err := client.Actions.ListRepoVariables(ctx, "FedeDP", "test-infra", nil)
+	vars, _, err = client.Actions.ListRepoVariables(ctx, "FedeDP", "test-infra", nil)
 	if err != nil {
 		fail(err.Error())
 	}
 	for _, s := range vars.Variables {
 		fmt.Printf("  %s: %s\n", s.Name, s.Value)
+	}
+
+	println("deleting...")
+	_, err = client.Actions.DeleteRepoVariable(ctx, "FedeDP", "test-infra", "topkek2")
+	if err != nil {
+		fail(err.Error())
+	}
+
+	vars, _, err = client.Actions.ListRepoVariables(ctx, "FedeDP", "test-infra", nil)
+	if err != nil {
+		fail(err.Error())
+	}
+	for _, s := range vars.Variables {
+		fmt.Printf("%s: %s\n", s.Name, s.Value)
 	}
 
 	fmt.Println("End")
