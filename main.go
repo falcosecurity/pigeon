@@ -2,35 +2,39 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"encoding/base64"
 	"net/http"
 	"os"
 	"strings"
 
 	"github.com/FedeDP/GhEnvSet/pkg/poiana"
 	"github.com/google/go-github/v49/github"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
+
+	"github.com/jamesruan/sodium"
 )
 
 func fail(err string) {
-	println(err)
+	logrus.Fatal(err)
 	os.Exit(1)
 }
 
 const sampleYAML = `
 orgs:
-  falcosecurity:
+  FedeDP:
     repos:
-      .github:
+      GhEnvSet:
         actions:
           variables:
-            GH_TOKEN: "ciao"
+            SOME_VARIABLE2: "ciao"
           secrets:
-            - S3_ACCESSEKY
+            - TEST_SECRET_KEY
 `
 
-func syncSecrets(ctx context.Context, client *poiana.Client, orgName, repoName string, secrets []string) error {
+func syncSecrets(ctx context.Context, client *poiana.Client, provider poiana.SecretsProvider, orgName, repoName string, secrets []string) error {
 	// Step 1: load repo secrets
+	logrus.Infof("listing secrets for repo '%s/%s'...", orgName, repoName)
 	secs, _, err := client.Actions.ListRepoSecrets(ctx, orgName, repoName, nil)
 	if err != nil {
 		return err
@@ -46,6 +50,7 @@ func syncSecrets(ctx context.Context, client *poiana.Client, orgName, repoName s
 			}
 		}
 		if !found {
+			logrus.Infof("deleting secret '%s' for repo '%s/%s'...", existentSec.Name, orgName, repoName)
 			_, err = client.Actions.DeleteRepoSecret(ctx, orgName, repoName, existentSec.Name)
 			if err != nil {
 				return err
@@ -54,23 +59,35 @@ func syncSecrets(ctx context.Context, client *poiana.Client, orgName, repoName s
 	}
 
 	// Step 3: fetch encryption key
+	logrus.Infof("retrieving public key for repo '%s/%s'...", orgName, repoName)
 	pKey, _, err := client.Actions.GetRepoPublicKey(ctx, orgName, repoName)
 	if err != nil {
 		return err
 	}
 
+	keyBytes, err := base64.StdEncoding.DecodeString(pKey.GetKey())
+	if err != nil {
+		return err
+	}
+
 	// Step 4: add or update all conf-listed secrets
-	for _, sec := range secrets {
-		// TODO
-		// encrypted_value string
-		//	Value for your secret, encrypted with LibSodium using the public key retrieved from the Get a repository public key endpoint.
-		//
-		//	key_id string
-		//	ID of the key you used to encrypt the secret.
+	for _, secName := range secrets {
+		logrus.Infof("adding/updating secret '%s' in repo '%s/%s'...", secName, orgName, repoName)
+		secValue, err := provider.GetSecret(secName)
+		if err != nil {
+			return err
+		}
+
+		secBytes := sodium.Bytes(secValue)
+		encSecBytes := secBytes.SealedBox(sodium.BoxPublicKey{Bytes: keyBytes})
+		encSecBytesB64 := base64.StdEncoding.EncodeToString(([]byte)(encSecBytes))
+		if err != nil {
+			return err
+		}
 		_, err = client.Actions.CreateOrUpdateRepoSecret(ctx, orgName, repoName, &github.EncryptedSecret{
-			Name:           sec,
+			Name:           secName,
 			KeyID:          pKey.GetKeyID(),
-			EncryptedValue: "", // TODO: fetch from 1password and encrypt using pkey
+			EncryptedValue: encSecBytesB64,
 		})
 		if err != nil {
 			return err
@@ -81,21 +98,17 @@ func syncSecrets(ctx context.Context, client *poiana.Client, orgName, repoName s
 
 func syncVariables(ctx context.Context, client *poiana.Client, orgName, repoName string, variables map[string]string) error {
 	// Step 1: load repo variables
+	logrus.Infof("listing variables for repo '%s/%s'...", orgName, repoName)
 	vars, _, err := client.Actions.ListRepoVariables(ctx, orgName, repoName, nil)
 	if err != nil {
 		return err
 	}
 
 	// Step 2: delete all variables that are no more existing
-	found := false
 	for _, existentVar := range vars.Variables {
-		for newVarName, _ := range variables {
-			if newVarName == existentVar.Name {
-				found = true
-				break
-			}
-		}
-		if !found {
+		_, ok := variables[existentVar.Name]
+		if !ok {
+			logrus.Infof("deleting variable '%s' for repo '%s/%s'...", existentVar.Name, orgName, repoName)
 			_, err = client.Actions.DeleteRepoVariable(ctx, orgName, repoName, existentVar.Name)
 			if err != nil {
 				return err
@@ -105,6 +118,7 @@ func syncVariables(ctx context.Context, client *poiana.Client, orgName, repoName
 
 	// Step 3: add or update all conf-listed variables
 	for newVarName, newVarValue := range variables {
+		logrus.Infof("adding/updating variable '%s' in repo '%s/%s'...", newVarName, orgName, repoName)
 		_, err = client.Actions.CreateOrUpdateRepoVariable(ctx, orgName, repoName, &poiana.Variable{
 			Name:  newVarName,
 			Value: newVarValue,
@@ -116,16 +130,7 @@ func syncVariables(ctx context.Context, client *poiana.Client, orgName, repoName
 	return nil
 }
 
-func main() {
-	conf := poiana.GithubConfig{}
-	err := conf.Decode(strings.NewReader(sampleYAML))
-	if err != nil {
-		fail(err.Error())
-	}
-
-	ctx := context.Background()
-	fmt.Println("Start")
-
+func getClient(ctx context.Context) *poiana.Client {
 	ghTok := os.Getenv("GH_TOKEN")
 	var tc *http.Client
 	if ghTok != "" {
@@ -134,23 +139,38 @@ func main() {
 		)
 		tc = oauth2.NewClient(ctx, ts)
 	}
-	client := poiana.NewClient(github.NewClient(tc))
+	return poiana.NewClient(github.NewClient(tc))
+}
 
-	fmt.Println("Looping orgs")
+func main() {
+	conf := poiana.GithubConfig{}
+	err := conf.Decode(strings.NewReader(sampleYAML))
+	if err != nil {
+		fail(err.Error())
+	}
+
+	provider, _ := poiana.NewMockSecretsProvider(map[string]string{
+		"TEST_SECRET_KEY2": "ciaociaociao2",
+		"TEST_SECRET_KEY":  "ciaociaociao",
+	})
+
+	ctx := context.Background()
+	client := getClient(ctx)
 	for orgName, org := range conf.Orgs {
+		// todo: also remove all secrets and vars for all repos not present
+		// in the YAML config
 		for repoName, repo := range org.Repos {
-			err = syncSecrets(ctx, client, orgName, repoName, repo.Actions.Secrets)
+			err = syncSecrets(ctx, client, provider, orgName, repoName, repo.Actions.Secrets)
 			if err != nil {
 				fail(err.Error())
 			}
-			fmt.Printf("Secrets synced for %s/%s\n", orgName, repoName)
+			logrus.Infof("secrets synced for %s/%s\n", orgName, repoName)
 
 			err = syncVariables(ctx, client, orgName, repoName, repo.Actions.Variables)
 			if err != nil {
 				fail(err.Error())
 			}
-			fmt.Printf("Variables synced for %s/%s\n", orgName, repoName)
+			logrus.Infof("variables synced for %s/%s\n", orgName, repoName)
 		}
 	}
-	fmt.Println("End")
 }
