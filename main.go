@@ -3,12 +3,18 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/google/go-github/v49/github"
-	"golang.org/x/oauth2"
-	"log"
 	"net/http"
 	"os"
+
+	"github.com/FedeDP/GhEnvSet/pkg/poiana"
+	"github.com/google/go-github/v49/github"
+	"golang.org/x/oauth2"
 )
+
+func fail(err string) {
+	println(err)
+	os.Exit(1)
+}
 
 func main() {
 	ctx := context.Background()
@@ -22,27 +28,33 @@ func main() {
 		)
 		tc = oauth2.NewClient(ctx, ts)
 	}
-	client := github.NewClient(tc)
+	client := poiana.NewClient(github.NewClient(tc))
 
-	fmt.Println("Have client")
-	env, _, err := client.Repositories.CreateUpdateEnvironment(ctx, "FedeDP", "test-infra", "stocazzo2",
-		&github.CreateUpdateEnvironment{
-			WaitTimer:              nil,
-			Reviewers:              nil,
-			DeploymentBranchPolicy: nil,
-		})
-	if err == nil {
-		fmt.Println(env.CreatedAt)
-	}
-
-	client.Actions.CreateOrUpdateEnvSecret(ctx, "FedeDP", "stocazzo2")
-	repos, _, err := client.Repositories.List(ctx, "falcosecurity", nil)
+	// fmt.Println("Have client")
+	// env, _, err := client.Repositories.CreateUpdateEnvironment(ctx, "FedeDP", "test-infra", "stocazzo2",
+	// 	&github.CreateUpdateEnvironment{
+	// 		WaitTimer:              nil,
+	// 		Reviewers:              nil,
+	// 		DeploymentBranchPolicy: nil,
+	// 	})
+	// if err == nil {
+	// 	fmt.Println(env.CreatedAt)
+	// }
+	_, err := client.Actions.CreateOrUpdateRepoVariable(ctx, "FedeDP", "test-infra", &poiana.Variable{
+		Name:  "topkek2",
+		Value: "stocazzo",
+	})
 	if err != nil {
-		log.Fatal(err)
+		fail(err.Error())
 	}
-	fmt.Println("Have repos")
-	for i, repo := range repos {
-		fmt.Printf("%d) %s\n", i, *repo.Name)
+
+	vars, _, err := client.Actions.ListRepoVariables(ctx, "FedeDP", "test-infra", nil)
+	if err != nil {
+		fail(err.Error())
 	}
+	for _, s := range vars.Variables {
+		fmt.Printf("  %s: %s\n", s.Name, s.Value)
+	}
+
 	fmt.Println("End")
 }
