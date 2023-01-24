@@ -29,13 +29,13 @@ type actionsService struct {
 	client *github.Client
 }
 
-type client struct {
+type Client struct {
 	*github.Client
 	Actions *actionsService
 }
 
-func NewClient(c *github.Client) *client {
-	return &client{
+func NewClient(c *github.Client) *Client {
+	return &Client{
 		Client: c,
 		Actions: &actionsService{
 			ActionsService: c.Actions,
