@@ -11,6 +11,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install sodium
+        run: sudo apt-get install -y libsodium-dev
+          
       - name: Setup Go
         uses: actions/setup-go@v1
         with:
