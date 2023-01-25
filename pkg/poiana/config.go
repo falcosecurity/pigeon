@@ -1,8 +1,14 @@
 package poiana
 
 import (
+	"context"
+	"encoding/base64"
 	"io"
+	"os"
 
+	"github.com/google/go-github/v49/github"
+	"github.com/jamesruan/sodium"
+	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
 )
 
@@ -29,4 +35,139 @@ func (e *GithubConfig) Decode(r io.Reader) error {
 
 func (e *GithubConfig) Encode(w io.Writer) error {
 	return yaml.NewEncoder(w).Encode(e)
+}
+
+func syncSecrets(ctx context.Context,
+	service ActionsSecretsService,
+	provider SecretsProvider,
+	pKey *github.PublicKey,
+	orgName, repoName string,
+	secrets []string) error {
+
+	// Step 1: load repo secrets
+	logrus.Infof("listing secrets for repo '%s/%s'...", orgName, repoName)
+	secs, err := service.ListRepoSecrets(ctx, orgName, repoName)
+	if err != nil {
+		return err
+	}
+
+	// Step 2: delete all secrets that are no more existing
+	found := false
+	for _, existentSec := range secs.Secrets {
+		for _, newSec := range secrets {
+			if newSec == existentSec.Name {
+				found = true
+				break
+			}
+		}
+		if !found {
+			logrus.Infof("deleting secret '%s' for repo '%s/%s'...", existentSec.Name, orgName, repoName)
+			err = service.DeleteRepoSecret(ctx, orgName, repoName, existentSec.Name)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	keyBytes, err := base64.StdEncoding.DecodeString(pKey.GetKey())
+	if err != nil {
+		return err
+	}
+
+	// Step 3: add or update all conf-listed secrets
+	for _, secName := range secrets {
+		logrus.Infof("adding/updating secret '%s' in repo '%s/%s'...", secName, orgName, repoName)
+		secValue, err := provider.GetSecret(secName)
+		if err != nil {
+			return err
+		}
+
+		secBytes := sodium.Bytes(secValue)
+		encSecBytes := secBytes.SealedBox(sodium.BoxPublicKey{Bytes: keyBytes})
+		encSecBytesB64 := base64.StdEncoding.EncodeToString(([]byte)(encSecBytes))
+		if err != nil {
+			return err
+		}
+		err = service.CreateOrUpdateRepoSecret(ctx, orgName, repoName, &github.EncryptedSecret{
+			Name:           secName,
+			KeyID:          pKey.GetKeyID(),
+			EncryptedValue: encSecBytesB64,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func syncVariables(ctx context.Context,
+	service ActionsVarsService,
+	orgName,
+	repoName string,
+	variables map[string]string) error {
+	// Step 1: load repo variables
+	logrus.Infof("listing variables for repo '%s/%s'...", orgName, repoName)
+	vars, err := service.ListRepoVariables(ctx, orgName, repoName)
+	if err != nil {
+		return err
+	}
+
+	// Step 2: delete all variables that are no more existing
+	for _, existentVar := range vars.Variables {
+		_, ok := variables[existentVar.Name]
+		if !ok {
+			logrus.Infof("deleting variable '%s' for repo '%s/%s'...", existentVar.Name, orgName, repoName)
+			err = service.DeleteRepoVariable(ctx, orgName, repoName, existentVar.Name)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	// Step 3: add or update all conf-listed variables
+	for newVarName, newVarValue := range variables {
+		logrus.Infof("adding/updating variable '%s' in repo '%s/%s'...", newVarName, orgName, repoName)
+		err = service.CreateOrUpdateRepoVariable(ctx, orgName, repoName, &Variable{
+			Name:  newVarName,
+			Value: newVarValue,
+		})
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func fail(err string) {
+	logrus.Fatal(err)
+	os.Exit(1)
+}
+
+func (g *GithubConfig) Loop(client Client, provider SecretsProvider) error {
+	ctx := context.Background()
+
+	for orgName, org := range g.Orgs {
+		// todo: also remove all secrets and vars for all repos not present
+		// in the YAML config
+		for repoName, repo := range org.Repos {
+			// fetch encryption key
+			logrus.Infof("retrieving public key for repo '%s/%s'...", orgName, repoName)
+			pKey, _, err := client.Actions.GetRepoPublicKey(ctx, orgName, repoName)
+			if err == nil {
+				err = syncSecrets(ctx, client.Actions, provider, pKey, orgName, repoName, repo.Actions.Secrets)
+			}
+			if err != nil {
+				fail(err.Error())
+			}
+			logrus.Infof("secrets synced for %s/%s\n", orgName, repoName)
+
+			err = syncVariables(ctx, client.Actions, orgName, repoName, repo.Actions.Variables)
+			if err != nil {
+				fail(err.Error())
+			}
+			logrus.Infof("variables synced for %s/%s\n", orgName, repoName)
+		}
+	}
+
+	return nil
 }
