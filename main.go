@@ -32,10 +32,16 @@ orgs:
             - TEST_SECRET_KEY
 `
 
-func syncSecrets(ctx context.Context, client *poiana.Client, provider poiana.SecretsProvider, orgName, repoName string, secrets []string) error {
+func syncSecrets(ctx context.Context,
+	service poiana.ActionsSecretsService,
+	provider poiana.SecretsProvider,
+	pKey *github.PublicKey,
+	orgName, repoName string,
+	secrets []string) error {
+
 	// Step 1: load repo secrets
 	logrus.Infof("listing secrets for repo '%s/%s'...", orgName, repoName)
-	secs, _, err := client.Actions.ListRepoSecrets(ctx, orgName, repoName, nil)
+	secs, err := service.ListRepoSecrets(ctx, orgName, repoName)
 	if err != nil {
 		return err
 	}
@@ -51,18 +57,11 @@ func syncSecrets(ctx context.Context, client *poiana.Client, provider poiana.Sec
 		}
 		if !found {
 			logrus.Infof("deleting secret '%s' for repo '%s/%s'...", existentSec.Name, orgName, repoName)
-			_, err = client.Actions.DeleteRepoSecret(ctx, orgName, repoName, existentSec.Name)
+			err = service.DeleteRepoSecret(ctx, orgName, repoName, existentSec.Name)
 			if err != nil {
 				return err
 			}
 		}
-	}
-
-	// Step 3: fetch encryption key
-	logrus.Infof("retrieving public key for repo '%s/%s'...", orgName, repoName)
-	pKey, _, err := client.Actions.GetRepoPublicKey(ctx, orgName, repoName)
-	if err != nil {
-		return err
 	}
 
 	keyBytes, err := base64.StdEncoding.DecodeString(pKey.GetKey())
@@ -70,7 +69,7 @@ func syncSecrets(ctx context.Context, client *poiana.Client, provider poiana.Sec
 		return err
 	}
 
-	// Step 4: add or update all conf-listed secrets
+	// Step 3: add or update all conf-listed secrets
 	for _, secName := range secrets {
 		logrus.Infof("adding/updating secret '%s' in repo '%s/%s'...", secName, orgName, repoName)
 		secValue, err := provider.GetSecret(secName)
@@ -84,7 +83,7 @@ func syncSecrets(ctx context.Context, client *poiana.Client, provider poiana.Sec
 		if err != nil {
 			return err
 		}
-		_, err = client.Actions.CreateOrUpdateRepoSecret(ctx, orgName, repoName, &github.EncryptedSecret{
+		err = service.CreateOrUpdateRepoSecret(ctx, orgName, repoName, &github.EncryptedSecret{
 			Name:           secName,
 			KeyID:          pKey.GetKeyID(),
 			EncryptedValue: encSecBytesB64,
@@ -96,10 +95,10 @@ func syncSecrets(ctx context.Context, client *poiana.Client, provider poiana.Sec
 	return nil
 }
 
-func syncVariables(ctx context.Context, client *poiana.Client, orgName, repoName string, variables map[string]string) error {
+func syncVariables(ctx context.Context, service poiana.ActionsVarsService, orgName, repoName string, variables map[string]string) error {
 	// Step 1: load repo variables
 	logrus.Infof("listing variables for repo '%s/%s'...", orgName, repoName)
-	vars, _, err := client.Actions.ListRepoVariables(ctx, orgName, repoName, nil)
+	vars, err := service.ListRepoVariables(ctx, orgName, repoName)
 	if err != nil {
 		return err
 	}
@@ -109,7 +108,7 @@ func syncVariables(ctx context.Context, client *poiana.Client, orgName, repoName
 		_, ok := variables[existentVar.Name]
 		if !ok {
 			logrus.Infof("deleting variable '%s' for repo '%s/%s'...", existentVar.Name, orgName, repoName)
-			_, err = client.Actions.DeleteRepoVariable(ctx, orgName, repoName, existentVar.Name)
+			err = service.DeleteRepoVariable(ctx, orgName, repoName, existentVar.Name)
 			if err != nil {
 				return err
 			}
@@ -119,7 +118,7 @@ func syncVariables(ctx context.Context, client *poiana.Client, orgName, repoName
 	// Step 3: add or update all conf-listed variables
 	for newVarName, newVarValue := range variables {
 		logrus.Infof("adding/updating variable '%s' in repo '%s/%s'...", newVarName, orgName, repoName)
-		_, err = client.Actions.CreateOrUpdateRepoVariable(ctx, orgName, repoName, &poiana.Variable{
+		err = service.CreateOrUpdateRepoVariable(ctx, orgName, repoName, &poiana.Variable{
 			Name:  newVarName,
 			Value: newVarValue,
 		})
@@ -160,13 +159,18 @@ func main() {
 		// todo: also remove all secrets and vars for all repos not present
 		// in the YAML config
 		for repoName, repo := range org.Repos {
-			err = syncSecrets(ctx, client, provider, orgName, repoName, repo.Actions.Secrets)
+			// fetch encryption key
+			logrus.Infof("retrieving public key for repo '%s/%s'...", orgName, repoName)
+			pKey, _, err := client.Actions.GetRepoPublicKey(ctx, orgName, repoName)
+			if err == nil {
+				err = syncSecrets(ctx, client.Actions, provider, pKey, orgName, repoName, repo.Actions.Secrets)
+			}
 			if err != nil {
 				fail(err.Error())
 			}
 			logrus.Infof("secrets synced for %s/%s\n", orgName, repoName)
 
-			err = syncVariables(ctx, client, orgName, repoName, repo.Actions.Variables)
+			err = syncVariables(ctx, client.Actions, orgName, repoName, repo.Actions.Variables)
 			if err != nil {
 				fail(err.Error())
 			}
