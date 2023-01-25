@@ -155,26 +155,6 @@ func main() {
 
 	ctx := context.Background()
 	client := getClient(ctx)
-	for orgName, org := range conf.Orgs {
-		// todo: also remove all secrets and vars for all repos not present
-		// in the YAML config
-		for repoName, repo := range org.Repos {
-			// fetch encryption key
-			logrus.Infof("retrieving public key for repo '%s/%s'...", orgName, repoName)
-			pKey, _, err := client.Actions.GetRepoPublicKey(ctx, orgName, repoName)
-			if err == nil {
-				err = syncSecrets(ctx, client.Actions, provider, pKey, orgName, repoName, repo.Actions.Secrets)
-			}
-			if err != nil {
-				fail(err.Error())
-			}
-			logrus.Infof("secrets synced for %s/%s\n", orgName, repoName)
 
-			err = syncVariables(ctx, client.Actions, orgName, repoName, repo.Actions.Variables)
-			if err != nil {
-				fail(err.Error())
-			}
-			logrus.Infof("variables synced for %s/%s\n", orgName, repoName)
-		}
-	}
+	conf.Loop(*client, provider)
 }
