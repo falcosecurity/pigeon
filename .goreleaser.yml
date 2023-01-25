@@ -1,0 +1,17 @@
+project_name: ghenvset
+builds:
+  - id: "ghenvset"
+    goos:
+    - linux
+    goarch:
+    - amd64
+    - arm64
+    main: .
+    flags:
+      - -v 
+      - -buildmode=pie
+    binary: ghenvset
+
+release:
+  github:
+  prerelease: auto
