@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"io"
 	"os"
+	"strings"
 
 	"github.com/google/go-github/v49/github"
 	"github.com/jamesruan/sodium"
@@ -35,6 +36,23 @@ func (e *GithubConfig) Decode(r io.Reader) error {
 
 func (e *GithubConfig) Encode(w io.Writer) error {
 	return yaml.NewEncoder(w).Encode(e)
+}
+
+func FromFile(fileName string) (*GithubConfig, error) {
+	b, err := os.ReadFile(fileName)
+	if err != nil {
+		return nil, err
+	}
+	return FromData(string(b))
+}
+
+func FromData(yamlData string) (*GithubConfig, error) {
+	var conf GithubConfig
+	err := conf.Decode(strings.NewReader(yamlData))
+	if err != nil {
+		return nil, err
+	}
+	return &conf, nil
 }
 
 func syncSecrets(ctx context.Context,
@@ -138,12 +156,7 @@ func syncVariables(ctx context.Context,
 	return nil
 }
 
-func fail(err string) {
-	logrus.Fatal(err)
-	os.Exit(1)
-}
-
-func (g *GithubConfig) Loop(client Client, provider SecretsProvider) error {
+func (g *GithubConfig) Loop(vService ActionsVarsService, sService ActionsSecretsService, provider SecretsProvider, pKeyProvider PublicKeyProvider) error {
 	ctx := context.Background()
 
 	for orgName, org := range g.Orgs {
@@ -152,18 +165,18 @@ func (g *GithubConfig) Loop(client Client, provider SecretsProvider) error {
 		for repoName, repo := range org.Repos {
 			// fetch encryption key
 			logrus.Infof("retrieving public key for repo '%s/%s'...", orgName, repoName)
-			pKey, _, err := client.Actions.GetRepoPublicKey(ctx, orgName, repoName)
+			pKey, err := pKeyProvider.GetPublicKey(ctx, orgName, repoName)
 			if err == nil {
-				err = syncSecrets(ctx, client.Actions, provider, pKey, orgName, repoName, repo.Actions.Secrets)
+				err = syncSecrets(ctx, sService, provider, pKey, orgName, repoName, repo.Actions.Secrets)
 			}
 			if err != nil {
-				fail(err.Error())
+				return err
 			}
 			logrus.Infof("secrets synced for %s/%s\n", orgName, repoName)
 
-			err = syncVariables(ctx, client.Actions, orgName, repoName, repo.Actions.Variables)
+			err = syncVariables(ctx, vService, orgName, repoName, repo.Actions.Variables)
 			if err != nil {
-				fail(err.Error())
+				return err
 			}
 			logrus.Infof("variables synced for %s/%s\n", orgName, repoName)
 		}

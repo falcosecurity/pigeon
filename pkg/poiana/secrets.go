@@ -2,6 +2,7 @@ package poiana
 
 import (
 	"context"
+
 	"github.com/google/go-github/v49/github"
 )
 
@@ -10,6 +11,10 @@ type SecretsProvider interface {
 	// GetSecret returns a secret with the given key.
 	// Returns a non-nil error in case of failure
 	GetSecret(string) (string, error)
+}
+
+type PublicKeyProvider interface {
+	GetPublicKey(context.Context, string, string) (*github.PublicKey, error)
 }
 
 type ActionsSecretsService interface {
