@@ -22,7 +22,7 @@ type onePasswordSecretsProvider struct {
 //     to your 1Password Connect instance.
 //   - `OP_CONNECT_HOST`: the hostname of your 1Password Connect instance.
 //   - `OP_VAULT`: a vault UUID from which retrieving the secrets.
-func NewOnePasswordSecretsProvider() (*onePasswordSecretsProvider, error) {
+func NewOnePasswordSecretsProvider() (SecretsProvider, error) {
 	client, err := connect.NewClientFromEnvironment()
 	if err != nil {
 		return nil, err

@@ -2,6 +2,9 @@ package poiana
 
 import (
 	"context"
+	"golang.org/x/oauth2"
+	"net/http"
+	"os"
 
 	"github.com/google/go-github/v49/github"
 )
@@ -29,17 +32,30 @@ type Client struct {
 	Actions *actionsService
 }
 
-func NewClient(c *github.Client) *Client {
-	return &Client{
-		Client: c,
-		Actions: &actionsService{
-			ActionsService: c.Actions,
-			client:         c,
-		},
-	}
-}
-
 func (a *actionsService) GetPublicKey(ctx context.Context, orgName string, repoName string) (*github.PublicKey, error) {
 	pKey, _, err := a.GetRepoPublicKey(ctx, orgName, repoName)
 	return pKey, err
+}
+
+func NewClient(ctx context.Context, tokenFile string) (*Client, error) {
+	ghTokBytes, err := os.ReadFile(tokenFile)
+	if err != nil {
+		return nil, err
+	}
+	ghTok := string(ghTokBytes)
+	var tc *http.Client
+	if ghTok != "" {
+		ts := oauth2.StaticTokenSource(
+			&oauth2.Token{AccessToken: ghTok},
+		)
+		tc = oauth2.NewClient(ctx, ts)
+	}
+	ghCl := github.NewClient(tc)
+	return &Client{
+		Client: ghCl,
+		Actions: &actionsService{
+			ActionsService: ghCl.Actions,
+			client:         ghCl,
+		},
+	}, nil
 }
