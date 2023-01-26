@@ -1,6 +1,8 @@
 package poiana
 
 import (
+	"context"
+
 	"github.com/google/go-github/v49/github"
 )
 
@@ -35,4 +37,9 @@ func NewClient(c *github.Client) *Client {
 			client:         c,
 		},
 	}
+}
+
+func (a *actionsService) GetPublicKey(ctx context.Context, orgName string, repoName string) (*github.PublicKey, error) {
+	pKey, _, err := a.GetRepoPublicKey(ctx, orgName, repoName)
+	return pKey, err
 }
