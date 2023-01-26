@@ -1,9 +1,9 @@
-package poiana
+package config
 
 import (
 	"context"
 	"encoding/base64"
-	"io"
+	"github.com/FedeDP/GhEnvSet/pkg/poiana"
 	"os"
 	"strings"
 
@@ -30,14 +30,6 @@ type GithubConfig struct {
 	Orgs map[string]GitHubOrg `yaml:"orgs"`
 }
 
-func (e *GithubConfig) Decode(r io.Reader) error {
-	return yaml.NewDecoder(r).Decode(e)
-}
-
-func (e *GithubConfig) Encode(w io.Writer) error {
-	return yaml.NewEncoder(w).Encode(e)
-}
-
 func FromFile(fileName string) (*GithubConfig, error) {
 	b, err := os.ReadFile(fileName)
 	if err != nil {
@@ -48,7 +40,7 @@ func FromFile(fileName string) (*GithubConfig, error) {
 
 func FromData(yamlData string) (*GithubConfig, error) {
 	var conf GithubConfig
-	err := conf.Decode(strings.NewReader(yamlData))
+	err := yaml.NewDecoder(strings.NewReader(yamlData)).Decode(&conf)
 	if err != nil {
 		return nil, err
 	}
@@ -56,8 +48,8 @@ func FromData(yamlData string) (*GithubConfig, error) {
 }
 
 func syncSecrets(ctx context.Context,
-	service ActionsSecretsService,
-	provider SecretsProvider,
+	service poiana.ActionsSecretsService,
+	provider poiana.SecretsProvider,
 	pKey *github.PublicKey,
 	orgName, repoName string,
 	secrets []string) error {
@@ -119,7 +111,7 @@ func syncSecrets(ctx context.Context,
 }
 
 func syncVariables(ctx context.Context,
-	service ActionsVarsService,
+	service poiana.ActionsVarsService,
 	orgName,
 	repoName string,
 	variables map[string]string) error {
@@ -145,7 +137,7 @@ func syncVariables(ctx context.Context,
 	// Step 3: add or update all conf-listed variables
 	for newVarName, newVarValue := range variables {
 		logrus.Infof("adding/updating variable '%s' in repo '%s/%s'...", newVarName, orgName, repoName)
-		err = service.CreateOrUpdateRepoVariable(ctx, orgName, repoName, &Variable{
+		err = service.CreateOrUpdateRepoVariable(ctx, orgName, repoName, &poiana.Variable{
 			Name:  newVarName,
 			Value: newVarValue,
 		})
@@ -157,10 +149,10 @@ func syncVariables(ctx context.Context,
 }
 
 func (g *GithubConfig) Loop(
-	vService ActionsVarsService,
-	sService ActionsSecretsService,
-	provider SecretsProvider,
-	pKeyProvider PublicKeyProvider,
+	vService poiana.ActionsVarsService,
+	sService poiana.ActionsSecretsService,
+	provider poiana.SecretsProvider,
+	pKeyProvider poiana.PublicKeyProvider,
 	dryRun bool,
 ) error {
 	ctx := context.Background()
