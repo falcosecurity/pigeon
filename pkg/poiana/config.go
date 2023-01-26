@@ -156,9 +156,16 @@ func syncVariables(ctx context.Context,
 	return nil
 }
 
-func (g *GithubConfig) Loop(vService ActionsVarsService, sService ActionsSecretsService, provider SecretsProvider, pKeyProvider PublicKeyProvider) error {
+func (g *GithubConfig) Loop(
+	vService ActionsVarsService,
+	sService ActionsSecretsService,
+	provider SecretsProvider,
+	pKeyProvider PublicKeyProvider,
+	dryRun bool,
+) error {
 	ctx := context.Background()
 
+	logrus.Debugln("Starting the loop")
 	for orgName, org := range g.Orgs {
 		// todo: also remove all secrets and vars for all repos not present
 		// in the YAML config
@@ -167,20 +174,28 @@ func (g *GithubConfig) Loop(vService ActionsVarsService, sService ActionsSecrets
 			logrus.Infof("retrieving public key for repo '%s/%s'...", orgName, repoName)
 			pKey, err := pKeyProvider.GetPublicKey(ctx, orgName, repoName)
 			if err == nil {
-				err = syncSecrets(ctx, sService, provider, pKey, orgName, repoName, repo.Actions.Secrets)
+				if dryRun {
+					logrus.Infoln("Would have synced secrets")
+				} else {
+					err = syncSecrets(ctx, sService, provider, pKey, orgName, repoName, repo.Actions.Secrets)
+				}
 			}
 			if err != nil {
 				return err
 			}
 			logrus.Infof("secrets synced for %s/%s\n", orgName, repoName)
 
-			err = syncVariables(ctx, vService, orgName, repoName, repo.Actions.Variables)
+			if dryRun {
+				logrus.Infoln("Would have synced variables")
+			} else {
+				err = syncVariables(ctx, vService, orgName, repoName, repo.Actions.Variables)
+			}
 			if err != nil {
 				return err
 			}
 			logrus.Infof("variables synced for %s/%s\n", orgName, repoName)
 		}
 	}
-
+	logrus.Debugln("Ended loop")
 	return nil
 }

@@ -1,5 +1,17 @@
 package main
 
+const sampleYAML = `
+orgs:
+  FedeDP:
+    repos:
+      GhEnvSet:
+        actions:
+          variables:
+            SOME_VARIABLE2: "ciao"
+          secrets:
+            - TEST_SECRET_KEY
+`
+
 // import (
 // 	"context"
 // 	"encoding/base64"

@@ -2,60 +2,61 @@ package main
 
 import (
 	"context"
-	"net/http"
-	"os"
-
+	"flag"
 	"github.com/FedeDP/GhEnvSet/pkg/poiana"
-	"github.com/google/go-github/v49/github"
 	"github.com/sirupsen/logrus"
-	"golang.org/x/oauth2"
 )
 
-func fail(err string) {
-	logrus.Fatal(err)
-	os.Exit(1)
+var (
+	ghToken  string
+	confFile string
+	dryRun   bool
+	verbose  bool
+)
+
+func init() {
+	flag.StringVar(&confFile, "conf", "", "path to yaml conf file")
+	flag.StringVar(&ghToken, "gh-token", "", "path to poiana github token with admin access on org/repo")
+	flag.BoolVar(&dryRun, "dry-run", false, "enable dry run mode")
+	flag.BoolVar(&verbose, "verbose", false, "enable verbose logging")
 }
 
-const sampleYAML = `
-orgs:
-  FedeDP:
-    repos:
-      GhEnvSet:
-        actions:
-          variables:
-            SOME_VARIABLE2: "ciao"
-          secrets:
-            - TEST_SECRET_KEY
-`
+func initOpts() {
+	flag.Parse()
 
-func getClient(ctx context.Context) *poiana.Client {
-	ghTok := os.Getenv("GH_TOKEN")
-	var tc *http.Client
-	if ghTok != "" {
-		ts := oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: ghTok},
-		)
-		tc = oauth2.NewClient(ctx, ts)
+	if verbose {
+		logrus.SetLevel(logrus.DebugLevel)
 	}
-	return poiana.NewClient(github.NewClient(tc))
+
+	if ghToken == "" {
+		logrus.Fatal(`"gh-token" flag must be set`)
+	}
+	if confFile == "" {
+		logrus.Fatal(`"conf" flag must be set`)
+	}
 }
 
 func main() {
-	conf, err := poiana.FromData(sampleYAML)
+	initOpts()
+
+	conf, err := poiana.FromFile(confFile)
 	if err != nil {
-		fail(err.Error())
+		logrus.Fatal(err)
 	}
 
-	provider, _ := poiana.NewMockSecretsProvider(map[string]string{
-		"TEST_SECRET_KEY2": "ciaociaociao2",
-		"TEST_SECRET_KEY":  "ciaociaociao",
-	})
+	provider, err := poiana.NewOnePasswordSecretsProvider()
+	if err != nil {
+		logrus.Fatal(err)
+	}
 
 	ctx := context.Background()
-	client := getClient(ctx)
-
-	err = conf.Loop(client.Actions, client.Actions, provider, client.Actions)
+	client, err := poiana.NewClient(ctx, ghToken)
 	if err != nil {
-		fail(err.Error())
+		logrus.Fatal(err)
+	}
+
+	err = conf.Loop(client.Actions, client.Actions, provider, client.Actions, dryRun)
+	if err != nil {
+		logrus.Fatal(err)
 	}
 }

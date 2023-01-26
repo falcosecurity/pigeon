@@ -6,9 +6,9 @@ type mockSecretsProvider struct {
 	m map[string]string
 }
 
-// NewOnePasswordSecretsProvider creates a secret provider that retrieves
+// NewMockSecretsProvider creates a secret provider that retrieves
 // secrets from a key-value map.
-func NewMockSecretsProvider(values map[string]string) (*mockSecretsProvider, error) {
+func NewMockSecretsProvider(values map[string]string) (SecretsProvider, error) {
 	return &mockSecretsProvider{m: values}, nil
 }
 
