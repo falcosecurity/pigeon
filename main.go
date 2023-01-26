@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/FedeDP/GhEnvSet/pkg/config"
 	"github.com/FedeDP/GhEnvSet/pkg/poiana"
 	"github.com/sirupsen/logrus"
 )
@@ -39,7 +40,7 @@ func initOpts() {
 func main() {
 	initOpts()
 
-	conf, err := poiana.FromFile(confFile)
+	conf, err := config.FromFile(confFile)
 	if err != nil {
 		logrus.Fatal(err)
 	}
