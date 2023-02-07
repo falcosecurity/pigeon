@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+
 	"github.com/FedeDP/GhEnvSet/pkg/config"
 	"github.com/FedeDP/GhEnvSet/pkg/poiana"
 	"github.com/sirupsen/logrus"
@@ -56,7 +57,7 @@ func main() {
 		logrus.Fatal(err)
 	}
 
-	err = conf.Loop(client.Actions, client.Actions, provider, client.Actions, dryRun)
+	err = conf.Sync(client, provider, dryRun)
 	if err != nil {
 		logrus.Fatal(err)
 	}

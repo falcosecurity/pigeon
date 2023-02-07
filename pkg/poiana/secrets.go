@@ -13,24 +13,9 @@ type SecretsProvider interface {
 	GetSecret(string) (string, error)
 }
 
-type PublicKeyProvider interface {
-	GetRepoPublicKey(ctx context.Context, orgName string, repoName string) (*github.PublicKey, *github.Response, error)
-	GetOrgPublicKey(ctx context.Context, org string) (*github.PublicKey, *github.Response, error)
-}
-
-type ActionsRepoSecretsService interface {
-	ListRepoSecrets(ctx context.Context, owner, repo string, opts *github.ListOptions) (*github.Secrets, *github.Response, error)
-	DeleteRepoSecret(ctx context.Context, owner, repo, name string) (*github.Response, error)
-	CreateOrUpdateRepoSecret(ctx context.Context, owner, repo string, eSecret *github.EncryptedSecret) (*github.Response, error)
-}
-
-type ActionsOrgSecretsService interface {
-	ListOrgSecrets(ctx context.Context, owner string, opts *github.ListOptions) (*github.Secrets, *github.Response, error)
-	DeleteOrgSecret(ctx context.Context, owner, name string) (*github.Response, error)
-	CreateOrUpdateOrgSecret(ctx context.Context, owner string, eSecret *github.EncryptedSecret) (*github.Response, error)
-}
-
 type ActionsSecretsService interface {
-	ActionsRepoSecretsService
-	ActionsOrgSecretsService
+	GetPublicKey(ctx context.Context) (*github.PublicKey, *github.Response, error)
+	ListSecrets(ctx context.Context, opts *github.ListOptions) (*github.Secrets, *github.Response, error)
+	DeleteSecret(ctx context.Context, name string) (*github.Response, error)
+	CreateOrUpdateSecret(ctx context.Context, eSecret *github.EncryptedSecret) (*github.Response, error)
 }
