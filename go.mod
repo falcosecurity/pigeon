@@ -4,7 +4,7 @@ go 1.17
 
 require (
 	github.com/1Password/connect-sdk-go v1.5.0
-	github.com/google/go-github/v49 v49.1.0
+	github.com/google/go-github/v50 v50.0.1-0.20230206142857-c855eb5fc7dc
 	github.com/jamesruan/sodium v1.0.14
 	github.com/sirupsen/logrus v1.9.0
 	github.com/stretchr/testify v1.7.1

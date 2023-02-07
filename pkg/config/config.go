@@ -4,10 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"github.com/FedeDP/GhEnvSet/pkg/poiana"
+	"net/http"
 	"os"
 	"strings"
 
-	"github.com/google/go-github/v49/github"
+	"github.com/google/go-github/v50/github"
 	"github.com/jamesruan/sodium"
 	"github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v3"
@@ -56,7 +57,7 @@ func syncSecrets(ctx context.Context,
 
 	// Step 1: load repo secrets
 	logrus.Infof("listing secrets for repo '%s/%s'...", orgName, repoName)
-	secs, err := service.ListRepoSecrets(ctx, orgName, repoName)
+	secs, _, err := service.ListRepoSecrets(ctx, orgName, repoName, nil)
 	if err != nil {
 		return err
 	}
@@ -72,7 +73,7 @@ func syncSecrets(ctx context.Context,
 		}
 		if !found {
 			logrus.Infof("deleting secret '%s' for repo '%s/%s'...", existentSec.Name, orgName, repoName)
-			err = service.DeleteRepoSecret(ctx, orgName, repoName, existentSec.Name)
+			_, err = service.DeleteRepoSecret(ctx, orgName, repoName, existentSec.Name)
 			if err != nil {
 				return err
 			}
@@ -95,10 +96,7 @@ func syncSecrets(ctx context.Context,
 		secBytes := sodium.Bytes(secValue)
 		encSecBytes := secBytes.SealedBox(sodium.BoxPublicKey{Bytes: keyBytes})
 		encSecBytesB64 := base64.StdEncoding.EncodeToString(([]byte)(encSecBytes))
-		if err != nil {
-			return err
-		}
-		err = service.CreateOrUpdateRepoSecret(ctx, orgName, repoName, &github.EncryptedSecret{
+		_, err = service.CreateOrUpdateRepoSecret(ctx, orgName, repoName, &github.EncryptedSecret{
 			Name:           secName,
 			KeyID:          pKey.GetKeyID(),
 			EncryptedValue: encSecBytesB64,
@@ -117,7 +115,7 @@ func syncVariables(ctx context.Context,
 	variables map[string]string) error {
 	// Step 1: load repo variables
 	logrus.Infof("listing variables for repo '%s/%s'...", orgName, repoName)
-	vars, err := service.ListRepoVariables(ctx, orgName, repoName)
+	vars, _, err := service.ListRepoVariables(ctx, orgName, repoName, nil)
 	if err != nil {
 		return err
 	}
@@ -127,7 +125,7 @@ func syncVariables(ctx context.Context,
 		_, ok := variables[existentVar.Name]
 		if !ok {
 			logrus.Infof("deleting variable '%s' for repo '%s/%s'...", existentVar.Name, orgName, repoName)
-			err = service.DeleteRepoVariable(ctx, orgName, repoName, existentVar.Name)
+			_, err = service.DeleteRepoVariable(ctx, orgName, repoName, existentVar.Name)
 			if err != nil {
 				return err
 			}
@@ -137,12 +135,21 @@ func syncVariables(ctx context.Context,
 	// Step 3: add or update all conf-listed variables
 	for newVarName, newVarValue := range variables {
 		logrus.Infof("adding/updating variable '%s' in repo '%s/%s'...", newVarName, orgName, repoName)
-		err = service.CreateOrUpdateRepoVariable(ctx, orgName, repoName, &poiana.Variable{
+		resp, err := service.UpdateRepoVariable(ctx, orgName, repoName, &github.ActionsVariable{
 			Name:  newVarName,
 			Value: newVarValue,
 		})
 		if err != nil {
-			return err
+			// Update returns StatusNoContent when successful
+			if resp.StatusCode != http.StatusNoContent {
+				_, err = service.CreateRepoVariable(ctx, orgName, repoName, &github.ActionsVariable{
+					Name:  newVarName,
+					Value: newVarValue,
+				})
+			}
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil
@@ -164,7 +171,7 @@ func (g *GithubConfig) Loop(
 		for repoName, repo := range org.Repos {
 			// fetch encryption key
 			logrus.Infof("retrieving public key for repo '%s/%s'...", orgName, repoName)
-			pKey, err := pKeyProvider.GetPublicKey(ctx, orgName, repoName)
+			pKey, _, err := pKeyProvider.GetRepoPublicKey(ctx, orgName, repoName)
 			if err == nil {
 				if dryRun {
 					logrus.Infoln("Would have synced secrets")
