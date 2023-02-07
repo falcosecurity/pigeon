@@ -37,43 +37,79 @@ func (pk *MockPublicKeyProvider) GetRepoPublicKey(ctx context.Context, orgName s
 	return &pKey, nil, nil
 }
 
+func (pk *MockPublicKeyProvider) GetOrgPublicKey(ctx context.Context, org string) (*github.PublicKey, *github.Response, error) {
+	return pk.GetRepoPublicKey(ctx, org, "")
+}
+
 func NewMockPublicKeyProvider() PublicKeyProvider {
 	return &MockPublicKeyProvider{}
 }
 
 type MockSecretsService struct {
-	secrets map[string]*github.EncryptedSecret
+	repoSecrets map[string]*github.EncryptedSecret
+	orgSecrets  map[string]*github.EncryptedSecret
 }
 
 func (m MockSecretsService) ListRepoSecrets(_ context.Context, _, _ string, _ *github.ListOptions) (*github.Secrets, *github.Response, error) {
 	secs := make([]*github.Secret, 0)
-	for key, _ := range m.secrets {
+	for key, _ := range m.repoSecrets {
 		secs = append(secs, &github.Secret{
 			Name: key,
 		})
 	}
 
 	return &github.Secrets{
-		TotalCount: len(m.secrets),
+		TotalCount: len(m.repoSecrets),
 		Secrets:    secs,
 	}, nil, nil
 }
 
 func (m MockSecretsService) DeleteRepoSecret(_ context.Context, _, _, name string) (*github.Response, error) {
-	delete(m.secrets, name)
+	delete(m.repoSecrets, name)
 	return nil, nil
 }
 
 func (m MockSecretsService) CreateOrUpdateRepoSecret(_ context.Context, _, _ string, eSecret *github.EncryptedSecret) (*github.Response, error) {
-	m.secrets[eSecret.Name] = eSecret
+	m.repoSecrets[eSecret.Name] = eSecret
+	return nil, nil
+}
+
+func (m MockSecretsService) ListOrgSecrets(ctx context.Context, owner string, opts *github.ListOptions) (*github.Secrets, *github.Response, error) {
+	secs := make([]*github.Secret, 0)
+	for key, _ := range m.orgSecrets {
+		secs = append(secs, &github.Secret{
+			Name: key,
+		})
+	}
+
+	return &github.Secrets{
+		TotalCount: len(m.orgSecrets),
+		Secrets:    secs,
+	}, nil, nil
+}
+
+func (m MockSecretsService) DeleteOrgSecret(ctx context.Context, owner, name string) (*github.Response, error) {
+	delete(m.orgSecrets, name)
+	return nil, nil
+}
+
+func (m MockSecretsService) CreateOrUpdateOrgSecret(ctx context.Context, owner string, eSecret *github.EncryptedSecret) (*github.Response, error) {
+	m.orgSecrets[eSecret.Name] = eSecret
 	return nil, nil
 }
 
 func NewMockSecretsService() ActionsSecretsService {
-	mServ := &MockSecretsService{secrets: make(map[string]*github.EncryptedSecret, 0)}
+	mServ := &MockSecretsService{
+		repoSecrets: make(map[string]*github.EncryptedSecret, 0),
+		orgSecrets:  make(map[string]*github.EncryptedSecret, 0),
+	}
 	_, _ = mServ.CreateOrUpdateRepoSecret(context.Background(), "", "", &github.EncryptedSecret{
-		Name:  "secret0",
-		KeyID: "testing",
+		Name:  "repoSecret0",
+		KeyID: "repoTesting",
+	})
+	_, _ = mServ.CreateOrUpdateOrgSecret(context.Background(), "", &github.EncryptedSecret{
+		Name:  "orgSecret0",
+		KeyID: "orgTesting",
 	})
 	return mServ
 }
