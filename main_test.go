@@ -2,10 +2,12 @@ package main
 
 import (
 	"context"
+	"testing"
+
 	"github.com/FedeDP/GhEnvSet/pkg/config"
 	"github.com/FedeDP/GhEnvSet/pkg/poiana"
 	"github.com/stretchr/testify/assert"
-	"testing"
+	"github.com/stretchr/testify/require"
 )
 
 const testYAML = `
@@ -32,48 +34,62 @@ func TestMainLoop(t *testing.T) {
 	ctx := context.Background()
 
 	conf, err := config.FromData(testYAML)
-	assert.NoError(t, err)
+	require.NoError(t, err)
 
-	mockVarServ := poiana.NewMockVariableService()
-	mockSecServ := poiana.NewMockSecretsService()
-	mockPKeyProv := poiana.NewMockPublicKeyProvider()
-	provider, err := poiana.NewMockSecretsProvider(map[string]string{"orgSecret0": "orgValue0", "repoSecret0": "repoValue0", "repoSecret1": "repoValue1", "repoSecret2": "repoValue2"})
-	assert.NoError(t, err)
+	provider, err := poiana.NewMockSecretsProvider(map[string]string{
+		"orgSecret0":  "orgValue0",
+		"repoSecret0": "repoValue0",
+		"repoSecret1": "repoValue1",
+		"repoSecret2": "repoValue2",
+	})
+	require.NoError(t, err)
 
-	err = conf.Loop(mockVarServ, mockSecServ, provider, mockPKeyProv, false)
-	assert.NoError(t, err)
+	// sync the org and the repos with the config
+	require.Len(t, conf.Orgs, 1)
+	for orgName, org := range conf.Orgs {
+		mockVarServ := poiana.NewMockVariableService()
+		mockSecServ := poiana.NewMockSecretsService()
+		require.Equal(t, orgName, "FedeDP")
+		require.NoError(t, org.Actions.Sync(ctx, provider, mockVarServ, mockSecServ, false))
 
-	// Org
-	// Check variables
-	vars, _, err := mockVarServ.ListOrgVariables(ctx, "", nil)
-	assert.NoError(t, err)
-	assert.Equal(t, vars.TotalCount, len(conf.Orgs["FedeDP"].Actions.Variables))
-	for _, v := range vars.Variables {
-		assert.Equal(t, conf.Orgs["FedeDP"].Actions.Variables[v.Name], v.Value)
-	}
+		// Check variables
+		vars, _, err := mockVarServ.ListVariables(ctx, nil)
+		assert.NoError(t, err)
+		assert.Equal(t, vars.TotalCount, len(conf.Orgs["FedeDP"].Actions.Variables))
+		for _, v := range vars.Variables {
+			assert.Equal(t, conf.Orgs["FedeDP"].Actions.Variables[v.Name], v.Value)
+		}
 
-	// Check secrets
-	secs, _, err := mockSecServ.ListOrgSecrets(ctx, "", nil)
-	assert.NoError(t, err)
-	assert.Equal(t, secs.TotalCount, len(conf.Orgs["FedeDP"].Actions.Secrets))
-	for _, sec := range secs.Secrets {
-		assert.Contains(t, conf.Orgs["FedeDP"].Actions.Secrets, sec.Name)
-	}
+		// Check secrets
+		secs, _, err := mockSecServ.ListSecrets(ctx, nil)
+		assert.NoError(t, err)
+		assert.Equal(t, secs.TotalCount, len(conf.Orgs["FedeDP"].Actions.Secrets))
+		for _, sec := range secs.Secrets {
+			assert.Contains(t, conf.Orgs["FedeDP"].Actions.Secrets, sec.Name)
+		}
 
-	// Repo
-	// Check variables
-	vars, _, err = mockVarServ.ListRepoVariables(ctx, "", "", nil)
-	assert.NoError(t, err)
-	assert.Equal(t, vars.TotalCount, len(conf.Orgs["FedeDP"].Repos["GhEnvSet"].Actions.Variables))
-	for _, v := range vars.Variables {
-		assert.Equal(t, conf.Orgs["FedeDP"].Repos["GhEnvSet"].Actions.Variables[v.Name], v.Value)
-	}
+		require.Len(t, org.Repos, 1)
+		for repoName, repo := range org.Repos {
+			mockVarServ := poiana.NewMockVariableService()
+			mockSecServ := poiana.NewMockSecretsService()
+			require.Equal(t, repoName, "GhEnvSet")
+			require.NoError(t, repo.Actions.Sync(ctx, provider, mockVarServ, mockSecServ, false))
 
-	// Check secrets
-	secs, _, err = mockSecServ.ListRepoSecrets(ctx, "", "", nil)
-	assert.NoError(t, err)
-	assert.Equal(t, secs.TotalCount, len(conf.Orgs["FedeDP"].Repos["GhEnvSet"].Actions.Secrets))
-	for _, sec := range secs.Secrets {
-		assert.Contains(t, conf.Orgs["FedeDP"].Repos["GhEnvSet"].Actions.Secrets, sec.Name)
+			// Check variables
+			vars, _, err = mockVarServ.ListVariables(ctx, nil)
+			assert.NoError(t, err)
+			assert.Equal(t, vars.TotalCount, len(conf.Orgs["FedeDP"].Repos["GhEnvSet"].Actions.Variables))
+			for _, v := range vars.Variables {
+				assert.Equal(t, conf.Orgs["FedeDP"].Repos["GhEnvSet"].Actions.Variables[v.Name], v.Value)
+			}
+
+			// Check secrets
+			secs, _, err = mockSecServ.ListSecrets(ctx, nil)
+			assert.NoError(t, err)
+			assert.Equal(t, secs.TotalCount, len(conf.Orgs["FedeDP"].Repos["GhEnvSet"].Actions.Secrets))
+			for _, sec := range secs.Secrets {
+				assert.Contains(t, conf.Orgs["FedeDP"].Repos["GhEnvSet"].Actions.Secrets, sec.Name)
+			}
+		}
 	}
 }

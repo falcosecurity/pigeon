@@ -2,9 +2,10 @@ package poiana
 
 import (
 	"context"
-	"golang.org/x/oauth2"
 	"net/http"
 	"os"
+
+	"golang.org/x/oauth2"
 
 	"github.com/google/go-github/v50/github"
 )
