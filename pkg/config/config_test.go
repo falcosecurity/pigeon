@@ -10,14 +10,14 @@ import (
 
 const testYAML = `
 orgs:
-  FedeDP:
+  myOrg:
     actions:
       variables:
         orgVar1: "orgValue1"
       secrets:
         - orgSecret0
     repos:
-      GhEnvSet:
+      myRepo:
         actions:
           variables:
             repoVar1: "repoValue1"
@@ -29,15 +29,26 @@ orgs:
 `
 
 func TestConfigSync(t *testing.T) {
-	org := "FedeDP"
-	repo := "GhEnvSet"
+	org := "myOrg"
+	repo := "myRepo"
 	ctx := context.Background()
 
 	conf, err := FromData(testYAML)
 	assert.NoError(t, err)
 
+	// Check correct yaml parsing
+	assert.Contains(t, conf.Orgs, org)
+	assert.Contains(t, conf.Orgs[org].Actions.Secrets, "orgSecret0")
+	assert.Contains(t, conf.Orgs[org].Actions.Variables, "orgVar1")
+	assert.Contains(t, conf.Orgs[org].Repos, repo)
+
 	factory := poiana.NewMockServiceFactory()
-	provider, err := poiana.NewMockSecretsProvider(map[string]string{"orgSecret0": "orgValue0", "repoSecret0": "repoValue0", "repoSecret1": "repoValue1", "repoSecret2": "repoValue2"})
+	provider, err := poiana.NewMockSecretsProvider(map[string]string{
+		"orgSecret0":  "orgValue0",
+		"repoSecret0": "repoValue0",
+		"repoSecret1": "repoValue1",
+		"repoSecret2": "repoValue2",
+	})
 	assert.NoError(t, err)
 
 	err = conf.Sync(factory, provider, false)

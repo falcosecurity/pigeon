@@ -6,7 +6,7 @@ type clientServiceFactory struct {
 	client *github.Client
 }
 
-func NewClientServiceFactory(client *github.Client) *clientServiceFactory {
+func NewClientServiceFactory(client *github.Client) ServiceFactory {
 	return &clientServiceFactory{client: client}
 }
 
