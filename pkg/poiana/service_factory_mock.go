@@ -7,7 +7,7 @@ type mockServiceFactory struct {
 	vars map[string]ActionsVarsService
 }
 
-func NewMockServiceFactory() mockServiceFactory {
+func NewMockServiceFactory() ServiceFactory {
 	return mockServiceFactory{
 		secs: make(map[string]ActionsSecretsService),
 		vars: make(map[string]ActionsVarsService),

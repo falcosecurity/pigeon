@@ -30,7 +30,7 @@ type mockSecretsService struct {
 	secrets map[string]*github.EncryptedSecret
 }
 
-func (pk *mockSecretsService) GetPublicKey(ctx context.Context) (*github.PublicKey, *github.Response, error) {
+func (m *mockSecretsService) GetPublicKey(ctx context.Context) (*github.PublicKey, *github.Response, error) {
 	keyID := "testing"
 	key := base64.StdEncoding.EncodeToString([]byte("aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")) // 32B key
 	pKey := github.PublicKey{
@@ -40,7 +40,7 @@ func (pk *mockSecretsService) GetPublicKey(ctx context.Context) (*github.PublicK
 	return &pKey, nil, nil
 }
 
-func (m mockSecretsService) ListSecrets(_ context.Context, _ *github.ListOptions) (*github.Secrets, *github.Response, error) {
+func (m *mockSecretsService) ListSecrets(_ context.Context, _ *github.ListOptions) (*github.Secrets, *github.Response, error) {
 	secs := make([]*github.Secret, 0)
 	for key := range m.secrets {
 		secs = append(secs, &github.Secret{
@@ -54,12 +54,12 @@ func (m mockSecretsService) ListSecrets(_ context.Context, _ *github.ListOptions
 	}, nil, nil
 }
 
-func (m mockSecretsService) DeleteSecret(_ context.Context, name string) (*github.Response, error) {
+func (m *mockSecretsService) DeleteSecret(_ context.Context, name string) (*github.Response, error) {
 	delete(m.secrets, name)
 	return nil, nil
 }
 
-func (m mockSecretsService) CreateOrUpdateSecret(_ context.Context, eSecret *github.EncryptedSecret) (*github.Response, error) {
+func (m *mockSecretsService) CreateOrUpdateSecret(_ context.Context, eSecret *github.EncryptedSecret) (*github.Response, error) {
 	m.secrets[eSecret.Name] = eSecret
 	return nil, nil
 }
