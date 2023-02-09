@@ -57,7 +57,7 @@ func main() {
 		logrus.Fatal(err)
 	}
 
-	err = conf.Sync(client, provider, dryRun)
+	err = conf.Sync(poiana.NewClientServiceFactory(client), provider, dryRun)
 	if err != nil {
 		logrus.Fatal(err)
 	}
