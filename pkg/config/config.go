@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/FedeDP/GhEnvSet/pkg/poiana"
+	"github.com/FedeDP/Pigeon/pkg/poiana"
 
 	"github.com/google/go-github/v50/github"
 	"github.com/jamesruan/sodium"

@@ -1,4 +1,4 @@
-module github.com/FedeDP/GhEnvSet
+module github.com/FedeDP/Pigeon
 
 go 1.17
 
