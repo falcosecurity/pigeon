@@ -42,7 +42,7 @@ func (pk *mockSecretsService) GetPublicKey(ctx context.Context) (*github.PublicK
 
 func (m mockSecretsService) ListSecrets(_ context.Context, _ *github.ListOptions) (*github.Secrets, *github.Response, error) {
 	secs := make([]*github.Secret, 0)
-	for key, _ := range m.secrets {
+	for key := range m.secrets {
 		secs = append(secs, &github.Secret{
 			Name: key,
 		})
