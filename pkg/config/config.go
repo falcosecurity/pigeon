@@ -164,15 +164,15 @@ func (g *GitHubActionsConfig) Sync(
 	return g.syncVariables(ctx, vars)
 }
 
-func (g *GithubConfig) Sync(c *github.Client, p poiana.SecretsProvider, dryRun bool) error {
+func (g *GithubConfig) Sync(f poiana.ServiceFactory, p poiana.SecretsProvider, dryRun bool) error {
 	logrus.Debugf("starting the synching loop")
 	ctx := context.Background()
 	for orgName, org := range g.Orgs {
 		logrus.Debugf("synching org %s", orgName)
 		err := org.Actions.Sync(
 			ctx, p,
-			poiana.NewClientOrgVariableService(c, orgName),
-			poiana.NewClientOrgSecretService(c, orgName),
+			f.NewOrgVariableService(orgName),
+			f.NewOrgSecretService(orgName),
 			dryRun)
 		if err != nil {
 			return err
@@ -183,8 +183,8 @@ func (g *GithubConfig) Sync(c *github.Client, p poiana.SecretsProvider, dryRun b
 			logrus.Debugf("synching repo %s/%s", orgName, repoName)
 			err := repo.Actions.Sync(
 				ctx, p,
-				poiana.NewClientRepoVariableService(c, orgName, repoName),
-				poiana.NewClientRepoSecretService(c, orgName, repoName),
+				f.NewRepoVariableService(orgName, repoName),
+				f.NewRepoSecretService(orgName, repoName),
 				dryRun)
 			if err != nil {
 				return err
