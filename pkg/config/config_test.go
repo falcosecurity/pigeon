@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"github.com/FedeDP/GhEnvSet/pkg/poiana"
+	"github.com/FedeDP/Pigeon/pkg/poiana"
 	"github.com/stretchr/testify/assert"
 )
 

@@ -1,14 +1,14 @@
-ghenvset ?= build/ghenvset
+pigeon ?= build/pigeon
 
 .PHONY: build
-build: clean ${ghenvset}
+build: clean ${pigeon}
 
 .PHONY: clean
 clean:
 	$(RM) -R dist
 	$(RM) -R build
 
-${ghenvset}:
+${pigeon}:
 	go build -buildmode=pie -o $@ .
 
 .PHONY: test

@@ -4,8 +4,8 @@ import (
 	"context"
 	"flag"
 
-	"github.com/FedeDP/GhEnvSet/pkg/config"
-	"github.com/FedeDP/GhEnvSet/pkg/poiana"
+	"github.com/FedeDP/Pigeon/pkg/config"
+	"github.com/FedeDP/Pigeon/pkg/poiana"
 	"github.com/sirupsen/logrus"
 )
 
