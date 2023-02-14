@@ -29,7 +29,6 @@ func initOpts() {
 	if verbose {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
-
 	if ghToken == "" {
 		logrus.Fatal(`"gh-token" flag must be set`)
 	}

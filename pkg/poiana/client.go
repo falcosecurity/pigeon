@@ -2,10 +2,8 @@ package poiana
 
 import (
 	"context"
-	"net/http"
 	"os"
-
-	"golang.org/x/oauth2"
+	"strings"
 
 	"github.com/google/go-github/v50/github"
 )
@@ -16,12 +14,6 @@ func NewClient(ctx context.Context, tokenFile string) (*github.Client, error) {
 		return nil, err
 	}
 	ghTok := string(ghTokBytes)
-	var tc *http.Client
-	if ghTok != "" {
-		ts := oauth2.StaticTokenSource(
-			&oauth2.Token{AccessToken: ghTok},
-		)
-		tc = oauth2.NewClient(ctx, ts)
-	}
-	return github.NewClient(tc), nil
+	ghTok = strings.Trim(ghTok, "\n")
+	return github.NewTokenClient(ctx, ghTok), nil
 }
