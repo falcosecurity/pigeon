@@ -3,12 +3,12 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/FedeDP/Pigeon/pkg/pigeon"
 	"github.com/google/go-github/v50/github"
 	"os"
 	"strings"
 
 	"github.com/FedeDP/Pigeon/pkg/config"
-	"github.com/FedeDP/Pigeon/pkg/poiana"
 	"github.com/sirupsen/logrus"
 )
 
@@ -21,7 +21,7 @@ var (
 
 func init() {
 	flag.StringVar(&confFile, "conf", "", "path to yaml conf file")
-	flag.StringVar(&ghToken, "gh-token", "", "path to poiana github token with admin access on org/repo")
+	flag.StringVar(&ghToken, "gh-token", "", "path to github token with admin access on org/repo")
 	flag.BoolVar(&dryRun, "dry-run", false, "enable dry run mode")
 	flag.BoolVar(&verbose, "verbose", false, "enable verbose logging")
 }
@@ -60,14 +60,14 @@ func main() {
 		logrus.Fatal(err)
 	}
 
-	provider, err := poiana.NewOnePasswordSecretsProvider()
+	provider, err := pigeon.NewOnePasswordSecretsProvider()
 	if err != nil {
 		logrus.Fatal(err)
 	}
 
 	ctx := context.Background()
 	client := github.NewTokenClient(ctx, ghToken)
-	err = conf.Sync(poiana.NewClientServiceFactory(client), provider, dryRun)
+	err = conf.Sync(pigeon.NewClientServiceFactory(client), provider, dryRun)
 	if err != nil {
 		logrus.Fatal(err)
 	}

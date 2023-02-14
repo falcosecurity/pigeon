@@ -2,9 +2,9 @@ package config
 
 import (
 	"context"
+	"github.com/FedeDP/Pigeon/pkg/pigeon"
 	"testing"
 
-	"github.com/FedeDP/Pigeon/pkg/poiana"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -42,8 +42,8 @@ func TestConfigSync(t *testing.T) {
 	assert.Contains(t, conf.Orgs[org].Actions.Variables, "orgVar1")
 	assert.Contains(t, conf.Orgs[org].Repos, repo)
 
-	factory := poiana.NewMockServiceFactory()
-	provider, err := poiana.NewMockSecretsProvider(map[string]string{
+	factory := pigeon.NewMockServiceFactory()
+	provider, err := pigeon.NewMockSecretsProvider(map[string]string{
 		"orgSecret0":  "orgValue0",
 		"repoSecret0": "repoValue0",
 		"repoSecret1": "repoValue1",

@@ -1,4 +1,4 @@
-package poiana
+package pigeon
 
 type ServiceFactory interface {
 	NewOrgVariableService(org string) ActionsVarsService

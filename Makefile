@@ -15,4 +15,4 @@ ${pigeon}:
 test:
 	go clean -testcache
 	go test -v -cover -race ./...
-	go test -v -cover -buildmode=pie ./pkg/poiana
+	go test -v -cover -buildmode=pie ./pkg/pigeon

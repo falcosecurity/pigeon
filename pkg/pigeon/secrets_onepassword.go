@@ -1,4 +1,4 @@
-package poiana
+package pigeon
 
 import (
 	"fmt"
