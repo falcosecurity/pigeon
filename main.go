@@ -3,6 +3,9 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/google/go-github/v50/github"
+	"os"
+	"strings"
 
 	"github.com/FedeDP/Pigeon/pkg/config"
 	"github.com/FedeDP/Pigeon/pkg/poiana"
@@ -29,9 +32,21 @@ func initOpts() {
 	if verbose {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
+
+	// Load token file from cli flag or env
 	if ghToken == "" {
-		logrus.Fatal(`"gh-token" flag must be set`)
+		ghToken = os.Getenv("GITHUB_TOKEN_FILE")
+		if ghToken == "" {
+			logrus.Fatal(`Github token must be provided either through "gh-token" flag, or "GITHUB_AUTH_TOKEN" env."`)
+		}
 	}
+	ghTokBytes, err := os.ReadFile(ghToken)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	ghToken = string(ghTokBytes)
+	ghToken = strings.Trim(ghToken, "\n")
+
 	if confFile == "" {
 		logrus.Fatal(`"conf" flag must be set`)
 	}
@@ -51,11 +66,7 @@ func main() {
 	}
 
 	ctx := context.Background()
-	client, err := poiana.NewClient(ctx, ghToken)
-	if err != nil {
-		logrus.Fatal(err)
-	}
-
+	client := github.NewTokenClient(ctx, ghToken)
 	err = conf.Sync(poiana.NewClientServiceFactory(client), provider, dryRun)
 	if err != nil {
 		logrus.Fatal(err)
