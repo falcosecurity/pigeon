@@ -15,7 +15,7 @@ Tag the version, keep the `v` and replace `x.y.z` with the version number. e.g: 
 
 ```bash
 git pull
-git checkout master
+git checkout main
 git tag vx.y.z
 git push origin vx.y.z
 ```

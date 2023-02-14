@@ -1,6 +1,6 @@
-project_name: ghenvset
+project_name: pigeon
 builds:
-  - id: "ghenvset"
+  - id: "pigeon"
     goos:
     - linux
     goarch:
@@ -9,7 +9,7 @@ builds:
     flags:
       - -v 
       - -buildmode=pie
-    binary: ghenvset
+    binary: pigeon
 
 release:
   github:
