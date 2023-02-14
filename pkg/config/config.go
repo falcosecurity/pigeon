@@ -3,10 +3,9 @@ package config
 import (
 	"context"
 	"encoding/base64"
+	"github.com/FedeDP/Pigeon/pkg/pigeon"
 	"os"
 	"strings"
-
-	"github.com/FedeDP/Pigeon/pkg/poiana"
 
 	"github.com/google/go-github/v50/github"
 	"github.com/jamesruan/sodium"
@@ -51,8 +50,8 @@ func FromData(yamlData string) (*GithubConfig, error) {
 
 func (goa *GitHubActionsConfig) syncSecrets(
 	ctx context.Context,
-	service poiana.ActionsSecretsService,
-	provider poiana.SecretsProvider,
+	service pigeon.ActionsSecretsService,
+	provider pigeon.SecretsProvider,
 	pKey *github.PublicKey) error {
 
 	// Step 1: load repo secrets
@@ -108,7 +107,7 @@ func (goa *GitHubActionsConfig) syncSecrets(
 
 func (goa *GitHubActionsConfig) syncVariables(
 	ctx context.Context,
-	service poiana.ActionsVarsService) error {
+	service pigeon.ActionsVarsService) error {
 	// Step 1: load repo variables
 
 	vars, _, err := service.ListVariables(ctx, nil)
@@ -143,9 +142,9 @@ func (goa *GitHubActionsConfig) syncVariables(
 
 func (g *GitHubActionsConfig) Sync(
 	ctx context.Context,
-	provider poiana.SecretsProvider,
-	vars poiana.ActionsVarsService,
-	secrets poiana.ActionsSecretsService,
+	provider pigeon.SecretsProvider,
+	vars pigeon.ActionsVarsService,
+	secrets pigeon.ActionsSecretsService,
 	dryRun bool) error {
 	if dryRun {
 		logrus.Infoln("skipping secrets sync due to dry run")
@@ -164,7 +163,7 @@ func (g *GitHubActionsConfig) Sync(
 	return g.syncVariables(ctx, vars)
 }
 
-func (g *GithubConfig) Sync(f poiana.ServiceFactory, p poiana.SecretsProvider, dryRun bool) error {
+func (g *GithubConfig) Sync(f pigeon.ServiceFactory, p pigeon.SecretsProvider, dryRun bool) error {
 	logrus.Debugf("starting the synching loop")
 	ctx := context.Background()
 	for orgName, org := range g.Orgs {
