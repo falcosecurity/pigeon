@@ -1,13 +1,13 @@
 # Release Process
 
-Our release process is based upon [Github Actions](https://github.com/FedeDP/Pigeon/actions) and [goreleaser](https://github.com/goreleaser/goreleaser) tool for artifacts.
+Our release process is based upon [Github Actions](https://github.com/falcosecurity/pigeon/actions) and [goreleaser](https://github.com/goreleaser/goreleaser) tool for artifacts.
 
 When we release we do the following process:
 
 1. We decide together (usually in the #falco channel in [slack](https://kubernetes.slack.com/messages/falco)) what's the next version to tag
 2. A person with repository rights does the tag
 3. The same person runs commands in their machine following the "Release commands" section below
-4. Once the CI has done its job, the tag is live on [Github](https://github.com/falcosecurity/Pigeon/releases) with the artifacts
+4. Once the CI has done its job, the tag is live on [Github](https://github.com/falcosecurity/pigeon/releases) with the artifacts
 
 ## Release commands
 

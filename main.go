@@ -3,12 +3,13 @@ package main
 import (
 	"context"
 	"flag"
-	"github.com/FedeDP/Pigeon/pkg/pigeon"
-	"github.com/google/go-github/v50/github"
 	"os"
 	"strings"
 
-	"github.com/FedeDP/Pigeon/pkg/config"
+	"github.com/falcosecurity/pigeon/pkg/pigeon"
+	"github.com/google/go-github/v50/github"
+
+	"github.com/falcosecurity/pigeon/pkg/config"
 	"github.com/sirupsen/logrus"
 )
 

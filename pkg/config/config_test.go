@@ -2,8 +2,9 @@ package config
 
 import (
 	"context"
-	"github.com/FedeDP/Pigeon/pkg/pigeon"
 	"testing"
+
+	"github.com/falcosecurity/pigeon/pkg/pigeon"
 
 	"github.com/stretchr/testify/assert"
 )

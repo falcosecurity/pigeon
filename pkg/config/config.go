@@ -3,9 +3,10 @@ package config
 import (
 	"context"
 	"encoding/base64"
-	"github.com/FedeDP/Pigeon/pkg/pigeon"
 	"os"
 	"strings"
+
+	"github.com/falcosecurity/pigeon/pkg/pigeon"
 
 	"github.com/google/go-github/v50/github"
 	"github.com/jamesruan/sodium"

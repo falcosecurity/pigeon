@@ -1,4 +1,4 @@
-module github.com/FedeDP/Pigeon
+module github.com/falcosecurity/pigeon
 
 go 1.17
 

@@ -1,8 +1,8 @@
 # Pigeon
 
-[![Latest](https://img.shields.io/github/v/release/FedeDP/Pigeon)](https://github.com/FedeDP/Pigeon/releases/latest)
-[![Go Report Card](https://goreportcard.com/badge/github.com/FedeDP/Pigeon)](https://goreportcard.com/report/github.com/FedeDP/Pigeon)
-[![CI build](https://github.com/FedeDP/Pigeon/actions/workflows/ci.yaml/badge.svg)](https://github.com/FedeDP/Pigeon/actions/workflows/ci.yaml)
+[![Latest](https://img.shields.io/github/v/release/falcosecurity/pigeon)](https://github.com/falcosecurity/pigeon/releases/latest)
+[![Go Report Card](https://goreportcard.com/badge/github.com/falcosecurity/pigeon)](https://goreportcard.com/report/github.com/falcosecurity/pigeon)
+[![CI build](https://github.com/falcosecurity/pigeon/actions/workflows/ci.yaml/badge.svg)](https://github.com/falcosecurity/pigeon/actions/workflows/ci.yaml)
 
 Script to set github org/repo actions variables and secrets from a config file.  
 
