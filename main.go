@@ -17,8 +17,10 @@ package main
 import (
 	"context"
 	"flag"
+	"github.com/pkg/errors"
 	"os"
 	"strings"
+	"unicode"
 
 	"github.com/falcosecurity/pigeon/pkg/pigeon"
 	"github.com/google/go-github/v50/github"
@@ -41,6 +43,26 @@ func init() {
 	flag.BoolVar(&verbose, "verbose", false, "enable verbose logging")
 }
 
+func getTokenFromFile(path string) (string, error) {
+	token, err := os.ReadFile(path)
+	if err != nil {
+		return "", errors.Wrap(err, "error reading token file")
+	}
+
+	return removeNonPrintableChars(string(token)), nil
+}
+
+func removeNonPrintableChars(s string) string {
+	return strings.Map(func(r rune) rune {
+		switch {
+		case unicode.IsPrint(r):
+			return r
+		default:
+			return -1
+		}
+	}, s)
+}
+
 func initOpts() {
 	flag.Parse()
 
@@ -55,12 +77,11 @@ func initOpts() {
 			logrus.Fatal(`Github token must be provided either through "gh-token" flag, or "GITHUB_AUTH_TOKEN" env."`)
 		}
 	}
-	ghTokBytes, err := os.ReadFile(ghToken)
+	var err error
+	ghToken, err = getTokenFromFile(ghToken)
 	if err != nil {
 		logrus.Fatal(err)
 	}
-	ghToken = string(ghTokBytes)
-	ghToken = strings.Trim(ghToken, "\n")
 
 	if confFile == "" {
 		logrus.Fatal(`"conf" flag must be set`)
