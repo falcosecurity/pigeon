@@ -13,7 +13,8 @@ builds:
 
 dockers:
   - image_templates:
-      - "ghcr.io/falcosecurity/{{.ProjectName}}"
+      - "ghcr.io/falcosecurity/{{.ProjectName}}:latest"
+      - "ghcr.io/falcosecurity/{{.ProjectName}}:{{ .Tag }}"
 
 release:
   github:
