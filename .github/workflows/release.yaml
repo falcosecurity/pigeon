@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - 'v[0-9]+.[0-9]+.[0-9]+'
+      
+permissions:
+  contents: write # needed to write releases
+  id-token: write # needed for keyless signing
+  packages: write # needed for ghcr access 
 
 jobs:
   release:
@@ -20,13 +25,18 @@ jobs:
           go-version-file: 'go.mod'    
           
       - name: Install sodium
-        run: sudo apt-get install -y libsodium-dev    
-
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v3
+        run: sudo apt-get install -y libsodium-dev
+      
+      - uses: docker/login-action@v2
         with:
-          distribution: goreleaser
-          version: v1.10.3
-          args: release --rm-dist --timeout 60m
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish release
+        uses: goreleaser/goreleaser-action@f82d6c1c344bcacabba2c841718984797f664a6b #4.2.0
+        with:
+          version: latest
+          args: release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
