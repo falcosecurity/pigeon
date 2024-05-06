@@ -1,6 +1,6 @@
 project_name: pigeon
 builds:
-  - id: "pigeon"
+  - id: "{{.ProjectName}}"
     goos:
     - linux
     goarch:
@@ -9,7 +9,11 @@ builds:
     flags:
       - -v 
       - -buildmode=pie
-    binary: pigeon
+    binary: "{{.ProjectName}}"
+
+dockers:
+  - image_templates:
+      - "ghcr.io/falcosecurity/{{.ProjectName}}"
 
 release:
   github:

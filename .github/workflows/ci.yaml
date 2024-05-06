@@ -15,12 +15,44 @@ jobs:
         run: sudo apt-get install -y libsodium-dev
           
       - name: Setup Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@v4
         with:
-          go-version: 1.19
+          go-version-file: 'go.mod'
 
       - name: Build
         run: make build
         
       - name: Test
         run: make test
+
+  gomodtidy:
+    name: Enforce go.mod tidiness
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@8f4b7f84864484a7bf31766abe9204da3cbe65b3 # v3.5.0
+        with:
+          ref: "${{ github.event.pull_request.head.sha }}"
+          repository: ${{github.event.pull_request.head.repo.full_name}}
+          persist-credentials: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v4
+        with:
+          go-version-file: 'go.mod'
+
+      - name: Execute go mod tidy and check the outcome
+        working-directory: ./
+        run: |
+          go mod tidy
+          exit_code=$(git diff --exit-code)
+          exit ${exit_code}
+
+      - name: Print a comment in case of failure
+        run: |
+          echo "The go.mod and/or go.sum files appear not to be correctly tidied.
+          
+          Please, rerun go mod tidy to fix the issues."
+          exit 1
+        if: |
+          failure() && github.event.pull_request.head.repo.full_name == github.repository          

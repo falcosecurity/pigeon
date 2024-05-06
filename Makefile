@@ -1,4 +1,4 @@
-pigeon ?= build/pigeon
+pigeon ?= pigeon
 
 .PHONY: build
 build: clean ${pigeon}
@@ -6,7 +6,7 @@ build: clean ${pigeon}
 .PHONY: clean
 clean:
 	$(RM) -R dist
-	$(RM) -R build
+	$(RM) -R ${pigeon}
 
 ${pigeon}:
 	go build -buildmode=pie -o $@ .
